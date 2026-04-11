@@ -1,0 +1,11 @@
+{
+  "name": "smash-like-game",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A Smash-style local browser game menu and battle prototype.",
+  "scripts": {
+    "start": "node server.js",
+    "host-online": "powershell -ExecutionPolicy Bypass -File ./start-internet-share.ps1",
+    "stop-online": "powershell -ExecutionPolicy Bypass -File ./stop-internet-share.ps1"
+  }
+}
