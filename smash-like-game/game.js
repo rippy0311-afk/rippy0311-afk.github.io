@@ -900,7 +900,7 @@
         const selected = key === selectedKey ? "selected" : "";
         const moves = info.moves.map((move) => `<div class="character-move">${escapeHtml(move)}</div>`).join("");
         return `
-          <button class="character-card ${selected}" data-action="${action}" data-slot="${slotKey}" data-character="${key}">
+          <article class="character-card ${selected}" data-action="${action}" data-slot="${slotKey}" data-character="${key}" role="button" tabindex="0">
             <div class="character-name-row">
               <div class="character-name">${escapeHtml(info.label)}</div>
               <div class="character-weapon">${escapeHtml(info.weapon)}</div>
@@ -909,8 +909,11 @@
               <img class="character-portrait" src="${getCharacterPortraitDataUri(key)}" alt="${escapeHtml(info.label)} portrait">
             </div>
             <div class="character-summary">${escapeHtml(info.summary)}</div>
-            <div class="character-moves">${moves}</div>
-          </button>
+            <details class="character-move-details">
+              <summary>Move List</summary>
+              <div class="character-moves">${moves}</div>
+            </details>
+          </article>
         `;
       })
       .join("");
@@ -5187,6 +5190,10 @@
   }
 
   document.addEventListener("click", (event) => {
+    if (event.target.closest && event.target.closest(".character-move-details summary")) {
+      return;
+    }
+
     const target = event.target.closest("[data-action]");
     if (!target) {
       if (state.screen === "title") {
@@ -5223,6 +5230,18 @@
         }
         toggleBattlePauseMenu();
       }
+      return;
+    }
+
+    const selectionCard = event.target && event.target.closest ? event.target.closest(".character-card[role=button][data-action]") : null;
+    if (
+      selectionCard &&
+      !event.repeat &&
+      (event.code === "Enter" || event.code === "Space") &&
+      !(event.target && event.target.closest && event.target.closest("summary"))
+    ) {
+      event.preventDefault();
+      handleAction(selectionCard.dataset.action, selectionCard);
       return;
     }
 
