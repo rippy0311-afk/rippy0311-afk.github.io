@@ -1,5 +1,92 @@
 (function () {
   const app = document.getElementById("app");
+  const API_BASE_STORAGE_KEY = "smashApiBaseUrl";
+  const TROPHY_FALLBACK_SRC = createTrophyFallbackDataUri();
+
+  function normalizeApiBaseUrl(value) {
+    const raw = String(value || "").trim();
+    if (!raw) {
+      return "";
+    }
+
+    let normalized = raw.replace(/\/+$/, "");
+    if (!/^https?:\/\//i.test(normalized)) {
+      normalized = `https://${normalized}`;
+    }
+
+    try {
+      const url = new URL(normalized);
+      return url.origin;
+    } catch (error) {
+      return "";
+    }
+  }
+
+  function isGitHubPagesHost() {
+    return /\.github\.io$/i.test(window.location.hostname || "");
+  }
+
+  function createTrophyFallbackDataUri() {
+    const svg = `
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 420" role="img" aria-label="Trophy">
+        <defs>
+          <linearGradient id="trophy-gold" x1="0" x2="1" y1="0" y2="1">
+            <stop offset="0%" stop-color="#fff4b8"/>
+            <stop offset="42%" stop-color="#ffd24e"/>
+            <stop offset="100%" stop-color="#b56f00"/>
+          </linearGradient>
+          <linearGradient id="trophy-base" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" stop-color="#6d1e10"/>
+            <stop offset="100%" stop-color="#321008"/>
+          </linearGradient>
+        </defs>
+        <rect width="360" height="420" fill="none"/>
+        <ellipse cx="180" cy="134" rx="120" ry="96" fill="rgba(255,235,164,0.32)"/>
+        <path d="M112 64h136v28c0 46-18 86-50 114l-18 16-18-16c-32-28-50-68-50-114z" fill="url(#trophy-gold)" stroke="#fff5c7" stroke-width="8" stroke-linejoin="round"/>
+        <path d="M108 84H62c0 54 26 84 74 92" fill="none" stroke="url(#trophy-gold)" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M252 84h46c0 54-26 84-74 92" fill="none" stroke="url(#trophy-gold)" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+        <rect x="154" y="210" width="52" height="54" rx="18" fill="url(#trophy-gold)"/>
+        <rect x="124" y="258" width="112" height="26" rx="13" fill="url(#trophy-gold)"/>
+        <rect x="102" y="286" width="156" height="42" rx="15" fill="url(#trophy-base)"/>
+        <rect x="82" y="324" width="196" height="38" rx="14" fill="#49150b"/>
+        <text x="180" y="158" text-anchor="middle" fill="#fff9de" font-family="Bahnschrift, Yu Gothic UI, sans-serif" font-size="60" font-weight="900">1</text>
+      </svg>
+    `;
+
+    return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+  }
+
+  function renderTrophyImage(className, altText) {
+    const classAttr = className ? ` class="${className}"` : "";
+    return `<img${classAttr} src="assets/trophy.png" alt="${escapeHtml(altText)}" onerror="this.onerror=null;this.src='${TROPHY_FALLBACK_SRC}'">`;
+  }
+
+  function readInitialApiBaseUrl() {
+    const query = new URLSearchParams(window.location.search);
+    const queryValue = query.has("api") ? normalizeApiBaseUrl(query.get("api")) : "";
+    if (query.has("api")) {
+      try {
+        if (queryValue) {
+          window.localStorage.setItem(API_BASE_STORAGE_KEY, queryValue);
+        } else {
+          window.localStorage.removeItem(API_BASE_STORAGE_KEY);
+        }
+      } catch (error) {
+      }
+      return queryValue;
+    }
+
+    const runtimeValue = normalizeApiBaseUrl(window.SMASH_API_BASE_URL || (window.SMASH_CONFIG && window.SMASH_CONFIG.apiBaseUrl));
+    if (runtimeValue) {
+      return runtimeValue;
+    }
+
+    try {
+      return normalizeApiBaseUrl(window.localStorage.getItem(API_BASE_STORAGE_KEY));
+    } catch (error) {
+      return "";
+    }
+  }
 
   const state = {
     screen: "title",
@@ -14,6 +101,7 @@
     onlineBusy: false,
     onlineError: "",
     onlineNotice: "",
+    apiBaseUrl: readInitialApiBaseUrl(),
     publicShareUrl: "",
     stageSelect: null,
     characterSelect: null,
@@ -292,7 +380,7 @@
     return `
       <section class="screen title-screen grain" data-action="start-menu">
         <div class="title-hero">
-          <img class="title-trophy" src="assets/trophy.png" alt="Trophy">
+          ${renderTrophyImage("title-trophy", "Trophy")}
         </div>
         <div class="title-floor">
           <div class="press-start">Press Anywhere to Start</div>
@@ -315,6 +403,13 @@
   }
 
   function renderOnlineMenu() {
+    const apiBaseLabel = state.apiBaseUrl || "Same Origin";
+    const apiHint = state.apiBaseUrl
+      ? "Online Battle API requests will go to this server URL."
+      : isGitHubPagesHost()
+        ? "GitHub Pages cannot run the Node room server. Set the Online Server URL first."
+        : "Same-origin mode. If you open this from GitHub Pages, set the Online Server URL first.";
+
     return `
       <section class="screen panel-screen grain">
         <div class="top-bar">
@@ -326,10 +421,23 @@
             <h2 class="info-title">Internet Match</h2>
             <p class="info-copy">Create a room as the host, or join a friend's room code as player two. The host runs the match and sends the live battle state to the guest.</p>
           </div>
+          <div class="stack-column">
+            <div class="config-card">
+              <div class="config-title">Online Server</div>
+              <div class="value-display share-url-display">${escapeHtml(apiBaseLabel)}</div>
+              <p class="small-note">${escapeHtml(apiHint)}</p>
+              <div class="option-grid">
+                <button class="option-chip selected" data-action="set-online-api-base">Set Server URL</button>
+                ${state.apiBaseUrl ? '<button class="option-chip" data-action="reset-online-api-base">Use Same Origin</button>' : ""}
+              </div>
+            </div>
+          </div>
           <div class="rule-row">
             <button class="rule-card" data-action="open-online-host">Host Room</button>
             <button class="rule-card" data-action="open-online-join">Join Room</button>
           </div>
+          ${state.onlineError ? `<div class="status-banner error">${escapeHtml(state.onlineError)}</div>` : ""}
+          ${state.onlineNotice ? `<div class="status-banner">${escapeHtml(state.onlineNotice)}</div>` : ""}
         </div>
       </section>
     `;
@@ -674,7 +782,7 @@
         <div class="panel-body">
           <div class="photos-layout">
             <div class="photo-card">
-              <img src="assets/trophy.png" alt="Trophy gallery item">
+              ${renderTrophyImage("", "Trophy gallery item")}
               <h3 class="info-title">Opening Trophy</h3>
               <p class="info-copy">The first screen still centers the trophy with the black lower panel and the start prompt.</p>
             </div>
@@ -703,7 +811,7 @@
         <div class="panel-body">
           <div class="gacha-layout">
             <div class="gacha-card">
-              <img class="gacha-trophy" src="assets/trophy.png" alt="Gacha trophy">
+              ${renderTrophyImage("gacha-trophy", "Gacha trophy")}
               <h3 class="info-title">Prize Draw</h3>
               <p class="info-copy">Draw a random reward card inspired by the menu and arena theme.</p>
               <button class="draw-button" data-action="draw-gacha">Draw</button>
@@ -812,12 +920,19 @@
     const draft = state.characterSelect;
     const stageInfo = draft && draft.config.stageKey ? getStageInfo(draft.config.stageKey) : null;
     const onlineHost = isOnlineHostFlow();
+    const needsOnlineApi = onlineHost && isGitHubPagesHost() && !state.apiBaseUrl;
     const opponentLabel =
       draft && draft.config.rule === "practice" ? "target dummy" : onlineHost ? "guest player" : "CPU opponent";
     const opponentSlotLabel = draft && draft.config.rule === "practice" ? "Dummy" : onlineHost ? "Guest" : "CPU";
-    const startLabel = isOnlineHostFlow() ? (state.onlineBusy ? "Creating Room..." : "Create Online Room (Host)") : "Start Battle";
+    const startLabel = onlineHost
+      ? state.onlineBusy
+        ? "Creating Room..."
+        : needsOnlineApi
+          ? "Set Server URL"
+          : "Create Online Room (Host)"
+      : "Start Battle";
     const onlineHint = isOnlineHostFlow()
-      ? `<p class="info-copy">Choose your own fighter here. The guest will choose their fighter after they join the room.</p>`
+      ? `<p class="info-copy">Choose your own fighter here. The guest will choose their fighter after they join the room.${needsOnlineApi ? " Set the Online Server URL before creating the room." : ""}</p>`
       : "";
     const opponentCard = onlineHost
       ? `
@@ -1043,8 +1158,66 @@
       .slice(0, 6);
   }
 
+  function buildApiUrl(url) {
+    if (/^https?:\/\//i.test(url)) {
+      return url;
+    }
+
+    const path = String(url || "");
+    const normalizedPath = path.startsWith("/") ? path : `/${path}`;
+    return state.apiBaseUrl ? `${state.apiBaseUrl}${normalizedPath}` : normalizedPath;
+  }
+
+  function setApiBaseUrl(value) {
+    state.apiBaseUrl = normalizeApiBaseUrl(value);
+
+    try {
+      if (state.apiBaseUrl) {
+        window.localStorage.setItem(API_BASE_STORAGE_KEY, state.apiBaseUrl);
+      } else {
+        window.localStorage.removeItem(API_BASE_STORAGE_KEY);
+      }
+    } catch (error) {
+    }
+  }
+
+  function promptForApiBaseUrl() {
+    const initialValue = state.apiBaseUrl || state.publicShareUrl || "https://";
+    const nextValue = window.prompt("Online Battle server URL", initialValue);
+    if (nextValue === null) {
+      return;
+    }
+
+    const normalized = normalizeApiBaseUrl(nextValue);
+    if (!normalized) {
+      state.onlineError = "Enter a valid server URL like https://example.com";
+      state.onlineNotice = "";
+      render();
+      return;
+    }
+
+    setApiBaseUrl(normalized);
+    state.onlineError = "";
+    state.onlineNotice = `Online server set to ${normalized}`;
+    refreshPublicShareUrl();
+    render();
+  }
+
+  function ensureOnlineApiBaseUrl() {
+    if (state.apiBaseUrl || !isGitHubPagesHost()) {
+      return true;
+    }
+
+    promptForApiBaseUrl();
+    return Boolean(state.apiBaseUrl);
+  }
+
   async function requestJson(url, options) {
-    const response = await fetch(url, {
+    if (!state.apiBaseUrl && isGitHubPagesHost()) {
+      throw new Error("Set the Online Server URL from the Online Battle menu first");
+    }
+
+    const response = await fetch(buildApiUrl(url), {
       headers: { "Content-Type": "application/json" },
       ...options
     });
@@ -4659,6 +4832,20 @@
       return;
     }
 
+    if (action === "set-online-api-base") {
+      promptForApiBaseUrl();
+      return;
+    }
+
+    if (action === "reset-online-api-base") {
+      setApiBaseUrl("");
+      state.onlineError = "";
+      state.onlineNotice = "Online server reset to same-origin mode";
+      refreshPublicShareUrl();
+      render();
+      return;
+    }
+
     if (action === "open-online-host") {
       resetOnlineSession(false);
       state.matchMode = "online-host";
@@ -4847,6 +5034,9 @@
       keys.clear();
       mouseState.right = false;
       if (isOnlineHostFlow()) {
+        if (!ensureOnlineApiBaseUrl()) {
+          return;
+        }
         createOnlineRoomFromConfiguredMatch();
       } else {
         startConfiguredMatch();
@@ -4855,6 +5045,9 @@
     }
 
     if (action === "join-online-room") {
+      if (!ensureOnlineApiBaseUrl()) {
+        return;
+      }
       joinOnlineRoom();
       return;
     }
