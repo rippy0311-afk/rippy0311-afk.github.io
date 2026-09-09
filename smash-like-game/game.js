@@ -1,7 +1,74 @@
 (function () {
   const app = document.getElementById("app");
   const API_BASE_STORAGE_KEY = "smashApiBaseUrl";
+  const SETTINGS_STORAGE_KEY = "smashArenaSettings";
   const TROPHY_FALLBACK_SRC = createTrophyFallbackDataUri();
+
+  const DEFAULT_SETTINGS = {
+    volume: 70,
+    keyBindings: {
+      left: "KeyA",
+      right: "KeyD",
+      jump: "KeyW",
+      drop: "KeyS",
+      dash: "ShiftLeft",
+      grab: "KeyQ",
+      special: "KeyE",
+      rematch: "KeyR"
+    }
+  };
+
+  const KEY_BINDING_LABELS = {
+    left: "Move Left",
+    right: "Move Right",
+    jump: "Jump",
+    drop: "Drop Through",
+    dash: "Dash",
+    grab: "Grab / Throw",
+    special: "Special Modifier",
+    rematch: "Practice Rematch"
+  };
+
+  function readSettings() {
+    try {
+      const saved = JSON.parse(window.localStorage.getItem(SETTINGS_STORAGE_KEY) || "{}");
+      return {
+        volume: Number.isFinite(Number(saved.volume)) ? Math.max(0, Math.min(100, Number(saved.volume))) : DEFAULT_SETTINGS.volume,
+        keyBindings: { ...DEFAULT_SETTINGS.keyBindings, ...(saved.keyBindings || {}) }
+      };
+    } catch (error) {
+      return { ...DEFAULT_SETTINGS, keyBindings: { ...DEFAULT_SETTINGS.keyBindings } };
+    }
+  }
+
+  function saveSettings() {
+    try {
+      window.localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(state.settings));
+    } catch (error) {
+    }
+  }
+
+  function displayKey(code) {
+    if (code === "Space") return "Space";
+    if (code === "ShiftLeft" || code === "ShiftRight") return "Shift";
+    return String(code || "").replace(/^Key/, "").replace(/^Digit/, "");
+  }
+
+  function normalizeGameKey(code) {
+    const bindings = state.settings.keyBindings;
+    const canonical = {
+      left: "KeyA",
+      right: "KeyD",
+      jump: "KeyW",
+      drop: "KeyS",
+      dash: "ShiftLeft",
+      grab: "KeyQ",
+      special: "KeyE",
+      rematch: "KeyR"
+    };
+    const match = Object.keys(bindings).find((action) => bindings[action] === code);
+    return match ? canonical[match] : code;
+  }
 
   function normalizeApiBaseUrl(value) {
     const raw = String(value || "").trim();
@@ -95,6 +162,8 @@
     lifeTime: 3,
     timeLimit: 3,
     hpValue: 300,
+    settings: readSettings(),
+    keyRebindAction: null,
     gachaResult: null,
     onlineSession: null,
     onlineJoinCode: "",
@@ -393,10 +462,10 @@
     return `
       <section class="screen">
         <div class="mode-grid">
-          <button class="mode-tile red" data-action="open-rule-select"><span class="mode-label">Battle</span></button>
+          <button class="mode-tile red" data-action="open-rule-select"><span class="mode-label">VS CPU</span></button>
           <button class="mode-tile blue" data-action="open-practice"><span class="mode-label">Practice</span></button>
-          <button class="mode-tile green" data-action="open-online-menu"><span class="mode-label mode-label-online">Online Battle</span></button>
-          <button class="mode-tile yellow" data-action="open-photos"><span class="mode-label">Photos</span></button>
+          <button class="mode-tile green" data-action="open-online-menu"><span class="mode-label mode-label-online">Online Match</span></button>
+          <button class="mode-tile yellow" data-action="open-settings"><span class="mode-label">Settings</span></button>
         </div>
       </section>
     `;
@@ -800,6 +869,44 @@
     `;
   }
 
+  function renderSettings() {
+    const { volume, keyBindings } = state.settings;
+    const rebinding = state.keyRebindAction;
+    const rows = Object.entries(KEY_BINDING_LABELS)
+      .map(([action, label]) => `
+        <div class="settings-key-row">
+          <span>${escapeHtml(label)}</span>
+          <button class="key-bind-button ${rebinding === action ? "listening" : ""}" data-action="begin-key-rebind" data-key-action="${action}">${rebinding === action ? "Press a key..." : escapeHtml(displayKey(keyBindings[action]))}</button>
+        </div>
+      `)
+      .join("");
+
+    return `
+      <section class="screen panel-screen grain settings-screen">
+        <div class="top-bar">
+          <button class="back-button" data-action="go-mode-select" aria-label="Back"><span aria-hidden="true">&larr;</span></button>
+          <div class="bar-title">Settings</div>
+        </div>
+        <div class="panel-body">
+          <div class="settings-layout">
+            <section class="info-screen settings-card">
+              <h2 class="info-title">Audio</h2>
+              <label class="volume-control" for="master-volume"><span>Master Volume</span><output id="volume-value">${volume}%</output></label>
+              <input id="master-volume" class="volume-slider" type="range" min="0" max="100" value="${volume}" data-action="set-volume">
+              <p class="small-note">Your setting is saved in this browser.</p>
+            </section>
+            <section class="info-screen settings-card">
+              <h2 class="info-title">Key Config</h2>
+              <p class="info-copy">Select a control, then press the key you want to use. Left Click and Right Click remain attack and shield.</p>
+              <div class="settings-key-list">${rows}</div>
+              <button class="secondary-button" data-action="reset-key-bindings">Reset Defaults</button>
+            </section>
+          </div>
+        </div>
+      </section>
+    `;
+  }
+
   function renderGacha() {
     const result = state.gachaResult;
     return `
@@ -1088,6 +1195,11 @@
 
     if (state.screen === "photos") {
       app.innerHTML = renderPhotos();
+      return;
+    }
+
+    if (state.screen === "settings") {
+      app.innerHTML = renderSettings();
       return;
     }
 
@@ -4897,6 +5009,26 @@
       return;
     }
 
+    if (action === "open-settings") {
+      state.keyRebindAction = null;
+      setScreen("settings");
+      return;
+    }
+
+    if (action === "begin-key-rebind") {
+      state.keyRebindAction = button.dataset.keyAction;
+      render();
+      return;
+    }
+
+    if (action === "reset-key-bindings") {
+      state.settings.keyBindings = { ...DEFAULT_SETTINGS.keyBindings };
+      state.keyRebindAction = null;
+      saveSettings();
+      render();
+      return;
+    }
+
     if (action === "open-online-menu") {
       state.onlineBusy = false;
       state.onlineError = "";
@@ -5278,7 +5410,21 @@
 
   document.addEventListener("input", (event) => {
     const target = event.target;
-    if (!target || !target.dataset || target.dataset.action !== "online-join-code-input") {
+    if (!target || !target.dataset) {
+      return;
+    }
+
+    if (target.dataset.action === "set-volume") {
+      state.settings.volume = Math.max(0, Math.min(100, Number(target.value) || 0));
+      const output = document.getElementById("volume-value");
+      if (output) {
+        output.textContent = `${state.settings.volume}%`;
+      }
+      saveSettings();
+      return;
+    }
+
+    if (target.dataset.action !== "online-join-code-input") {
       return;
     }
 
@@ -5289,6 +5435,19 @@
   });
 
   window.addEventListener("keydown", (event) => {
+    if (state.keyRebindAction) {
+      event.preventDefault();
+      if (event.code === "Escape") {
+        state.keyRebindAction = null;
+      } else if (!event.repeat) {
+        state.settings.keyBindings[state.keyRebindAction] = event.code;
+        state.keyRebindAction = null;
+        saveSettings();
+      }
+      render();
+      return;
+    }
+
     if (["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.code)) {
       event.preventDefault();
     }
@@ -5316,14 +5475,15 @@
       return;
     }
 
-    keys.add(event.code);
+    const gameKey = normalizeGameKey(event.code);
+    keys.add(gameKey);
     if (isOnlineGuestBattle()) {
       syncGuestInputStateFromLocalControls();
     }
 
     if (state.screen === "battle" && state.battle && !state.battle.paused && !state.battle.ended && state.battle.introTimer <= 0 && !event.repeat) {
       if (isOnlineGuestBattle()) {
-        if (event.code === "KeyQ") {
+        if (gameKey === "KeyQ") {
           event.preventDefault();
           sendOnlineGuestCommand({ type: "grab" });
           return;
@@ -5336,13 +5496,13 @@
         }
       }
 
-      if (event.code === "KeyR" && state.battle.config.rule === "practice") {
+      if (gameKey === "KeyR" && state.battle.config.rule === "practice") {
         event.preventDefault();
         restartCurrentBattle();
         return;
       }
 
-      if (event.code === "KeyQ") {
+      if (gameKey === "KeyQ") {
         event.preventDefault();
         triggerHumanGrabOrThrow();
         return;
@@ -5356,7 +5516,7 @@
   });
 
   window.addEventListener("keyup", (event) => {
-    keys.delete(event.code);
+    keys.delete(normalizeGameKey(event.code));
     if (isOnlineGuestBattle()) {
       syncGuestInputStateFromLocalControls();
     }

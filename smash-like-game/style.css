@@ -194,6 +194,63 @@ button {
   color: white;
 }
 
+.settings-layout {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(280px, 460px));
+  gap: 22px;
+  width: min(960px, calc(100% - 28px));
+}
+
+.settings-card {
+  text-align: left;
+}
+
+.volume-control,
+.settings-key-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  font-weight: 800;
+}
+
+.volume-control output {
+  color: var(--gold);
+  font-variant-numeric: tabular-nums;
+}
+
+.volume-slider {
+  width: 100%;
+  margin: 18px 0 8px;
+  accent-color: var(--yellow);
+}
+
+.settings-key-list {
+  display: grid;
+  gap: 10px;
+  margin: 18px 0;
+}
+
+.settings-key-row {
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.key-bind-button {
+  min-width: 124px;
+  padding: 9px 13px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  font-weight: 900;
+}
+
+.key-bind-button.listening {
+  background: var(--orange);
+  color: #241000;
+  animation: pulse-text 1s ease-in-out infinite;
+}
+
 .panel-screen {
   display: flex;
   flex-direction: column;
@@ -1282,6 +1339,10 @@ button {
 
   .stage-select-grid,
   .character-select-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-layout {
     grid-template-columns: 1fr;
   }
 
