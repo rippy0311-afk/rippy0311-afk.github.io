@@ -1026,6 +1026,7 @@
           <div class="battle-rule">${escapeHtml(summarizeConfig(battle ? battle.config : null))}${stageLabel ? ` | ${escapeHtml(stageLabel)}` : ""}</div>
           <div class="battle-clock" id="battle-clock">${battle ? formatBattleClock(battle) : "--:--"}</div>
         </div>
+        <div class="battle-start-callout" id="battle-start-callout" aria-live="polite" hidden></div>
         <div class="battle-combo-banner" id="battle-combo-banner" hidden></div>
         <div class="overlay" id="battle-overlay" hidden></div>
       </section>
@@ -1682,6 +1683,7 @@
       networkSnapshotInFlight: false,
       paused: false,
       ended: false,
+      introTimer: 1.6,
       timeScale: config.rule === "practice" ? config.practiceTimeScale || 1 : 1,
       lastFrame: 0,
       timeRemaining: config.timeLimit,
@@ -1699,6 +1701,7 @@
         windBoost: 0
       },
       koEffects: [],
+      hitEffects: [],
       hitboxes: [],
       projectiles: [],
       players: [
@@ -1733,6 +1736,7 @@
       networkRole: "client",
       paused: battle.paused,
       ended: battle.ended,
+      introTimer: battle.introTimer,
       timeScale: battle.timeScale,
       timeRemaining: battle.timeRemaining,
       winner: battle.winner,
@@ -1740,6 +1744,7 @@
       endReason: battle.endReason,
       stage: JSON.parse(JSON.stringify(battle.stage)),
       koEffects: battle.koEffects.map((effect) => ({ ...effect })),
+      hitEffects: battle.hitEffects.map((effect) => ({ ...effect })),
       hitboxes: battle.hitboxes.map(({ hitSet, ...rest }) => ({ ...rest })),
       projectiles: battle.projectiles.map((projectile) => ({ ...projectile })),
       players: battle.players.map((player) => ({
@@ -1771,6 +1776,7 @@
         hitSet: new Set()
       })),
       koEffects: snapshot.koEffects || [],
+      hitEffects: snapshot.hitEffects || [],
       projectiles: snapshot.projectiles || [],
       stage: snapshot.stage || { key: "sky-arena", label: "Sky Arena", groundY: 0, wallTop: 0, platforms: [], walls: [], windBase: 0, windBoost: 0 }
     };
@@ -2103,6 +2109,11 @@
   }
 
   function updateBattle(battle, delta) {
+    if (battle.introTimer > 0) {
+      battle.introTimer = Math.max(0, battle.introTimer - delta);
+      return;
+    }
+
     if (battle.config.timeLimit !== null && battle.timeRemaining !== null) {
       battle.timeRemaining = Math.max(0, battle.timeRemaining - delta);
       if (battle.timeRemaining === 0) {
@@ -2116,6 +2127,7 @@
     updatePlayerState(battle, dummy, player, delta);
     updateHitboxes(battle, delta);
     updateProjectiles(battle, delta);
+    updateHitEffects(battle, delta);
   }
 
   function findBattlePlayer(battle, playerId) {
@@ -3433,7 +3445,7 @@
 
   function triggerHumanMove(moveKey) {
     const battle = state.battle;
-    if (!battle || battle.paused || battle.ended) {
+    if (!battle || battle.paused || battle.ended || battle.introTimer > 0) {
       return;
     }
     const [player, dummy] = battle.players;
@@ -3849,6 +3861,7 @@
     if (target.shieldActive && target.shieldEnergy > 0) {
       target.shieldEnergy = Math.max(0, target.shieldEnergy - shieldDrain);
       target.hitFlash = 0.1;
+      spawnHitEffect(battle, target, "#82e8ff");
       target.vx = source.dir * 125;
       target.vy = -55;
       if (target.shieldEnergy === 0) {
@@ -3861,6 +3874,7 @@
 
     target.hitFlash = 0.18;
     target.invincible = 0.04;
+    spawnHitEffect(battle, target, source.meteor ? "#ff7a52" : "#ffe17c");
     if (target.controlType === "cpu") {
       clearCpuComboRoute(target);
     }
@@ -3958,6 +3972,23 @@
       age: 0,
       duration: 0.42
     });
+  }
+
+  function spawnHitEffect(battle, target, color) {
+    battle.hitEffects.push({
+      x: target.x,
+      y: target.y - 18,
+      color,
+      age: 0,
+      duration: 0.22
+    });
+  }
+
+  function updateHitEffects(battle, delta) {
+    battle.hitEffects.forEach((effect) => {
+      effect.age += delta;
+    });
+    battle.hitEffects = battle.hitEffects.filter((effect) => effect.age < effect.duration);
   }
 
   function updateKoEffects(battle, delta) {
@@ -4266,6 +4297,7 @@
     const p2Sub = document.getElementById("p2-sub");
     const clock = document.getElementById("battle-clock");
     const comboBanner = document.getElementById("battle-combo-banner");
+    const startCallout = document.getElementById("battle-start-callout");
 
     if (!p1Main || !p2Main || !clock) {
       return;
@@ -4305,6 +4337,13 @@
     }
 
     clock.textContent = formatBattleClock(battle);
+
+    if (startCallout) {
+      const introTimer = Math.max(0, battle.introTimer || 0);
+      startCallout.hidden = introTimer === 0;
+      startCallout.textContent = introTimer > 0.55 ? "READY" : "GO!";
+      startCallout.classList.toggle("is-go", introTimer > 0 && introTimer <= 0.55);
+    }
 
     if (comboBanner) {
       const comboEntries = battle.players
@@ -4369,6 +4408,7 @@
     battle.hitboxes.forEach((hitbox) => drawHitbox(ctx, hitbox));
     battle.projectiles.forEach((projectile) => drawProjectile(ctx, projectile));
     battle.players.forEach((player) => drawPlayer(ctx, player, battle));
+    battle.hitEffects.forEach((effect) => drawHitEffect(ctx, effect));
     battle.koEffects.forEach((effect) => drawKoEffect(ctx, effect, width, height));
   }
 
@@ -4608,6 +4648,37 @@
     ctx.shadowBlur = 14;
     ctx.beginPath();
     ctx.arc(projectile.x, projectile.y, projectile.radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawHitEffect(ctx, effect) {
+    const progress = effect.age / effect.duration;
+    const fade = Math.max(0, 1 - progress);
+    const radius = 18 + progress * 34;
+
+    ctx.save();
+    ctx.translate(effect.x, effect.y);
+    ctx.globalCompositeOperation = "screen";
+    ctx.strokeStyle = effect.color;
+    ctx.fillStyle = "#ffffff";
+    ctx.globalAlpha = fade;
+    ctx.lineCap = "round";
+    ctx.shadowColor = effect.color;
+    ctx.shadowBlur = 16;
+
+    for (let index = 0; index < 8; index += 1) {
+      const angle = (Math.PI * 2 * index) / 8 + progress * 0.38;
+      ctx.lineWidth = index % 2 === 0 ? 5 : 3;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(angle) * 7, Math.sin(angle) * 7);
+      ctx.lineTo(Math.cos(angle) * radius, Math.sin(angle) * radius);
+      ctx.stroke();
+    }
+
+    ctx.globalAlpha = fade * 0.92;
+    ctx.beginPath();
+    ctx.arc(0, 0, Math.max(4, 13 - progress * 8), 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
   }
@@ -5250,7 +5321,7 @@
       syncGuestInputStateFromLocalControls();
     }
 
-    if (state.screen === "battle" && state.battle && !state.battle.paused && !state.battle.ended && !event.repeat) {
+    if (state.screen === "battle" && state.battle && !state.battle.paused && !state.battle.ended && state.battle.introTimer <= 0 && !event.repeat) {
       if (isOnlineGuestBattle()) {
         if (event.code === "KeyQ") {
           event.preventDefault();
@@ -5292,7 +5363,7 @@
   });
 
   window.addEventListener("mousedown", (event) => {
-    if (state.screen !== "battle" || !state.battle || state.battle.paused || state.battle.ended || !activeCanvas) {
+    if (state.screen !== "battle" || !state.battle || state.battle.paused || state.battle.ended || state.battle.introTimer > 0 || !activeCanvas) {
       return;
     }
     if (event.target.closest && event.target.closest("[data-action]")) {
