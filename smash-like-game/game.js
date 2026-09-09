@@ -317,12 +317,34 @@
 
   let rafId = 0;
   let activeCanvas = null;
+  let audioContext = null;
   const keys = new Set();
   const mouseState = { right: false };
   let onlineLobbyPollTimer = 0;
 
   function createInputState() {
     return { left: false, right: false, jump: false, fall: false, dash: false, shield: false };
+  }
+
+  function playSound(frequency, duration, type, level) {
+    if (state.settings.volume <= 0) return;
+    try {
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextClass) return;
+      audioContext = audioContext || new AudioContextClass();
+      if (audioContext.state === "suspended") audioContext.resume();
+      const oscillator = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+      const now = audioContext.currentTime;
+      oscillator.type = type;
+      oscillator.frequency.setValueAtTime(frequency, now);
+      gain.gain.setValueAtTime((state.settings.volume / 100) * level, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+      oscillator.connect(gain).connect(audioContext.destination);
+      oscillator.start(now);
+      oscillator.stop(now + duration);
+    } catch (error) {
+    }
   }
 
   function createCpuReadState() {
@@ -4998,6 +5020,7 @@
   }
 
   function handleAction(action, button) {
+    if (action !== "set-practice-speed") playSound(action === "start-configured-match" ? 660 : 430, 0.07, "square", 0.035);
     if (action === "start-menu") {
       setScreen("mode-select");
       return;
