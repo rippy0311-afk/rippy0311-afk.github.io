@@ -78,6 +78,7 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
+      gap: .52em;
       min-height: 50px;
       padding: 13px 18px;
       border: 1px solid rgba(255,255,255,.24);
@@ -90,6 +91,7 @@
       text-decoration: none;
       transition: transform 180ms ease, filter 180ms ease;
     }
+    .button-mark { font-size: 1.08em; line-height: 1; }
     .play.secondary { background: rgba(255,255,255,.10); }
     .play:hover, .play:focus-visible { transform: translateY(-2px); filter: brightness(1.1); outline: 3px solid rgba(245,212,119,.72); outline-offset: 3px; }
     .footer { margin-top: 34px; color: rgba(255,255,255,.52); font-size: .85rem; text-align: center; }
@@ -130,52 +132,52 @@
           <div class="game-mark" aria-hidden="true">★</div>
           <h2>Smash Style Arena</h2>
           <p>ルールを選んで楽しむ、アリーナ対戦ゲーム。</p>
-          <div class="actions"><a class="play" href="/">PLAY</a></div>
+          <div class="actions"><a class="play" href="/"><span class="button-mark" aria-hidden="true">★</span>PLAY</a></div>
         </article>
         <article class="game starshot">
           <div class="game-mark" aria-hidden="true">✦</div>
           <h2>STARSHOT</h2>
           <p>星空ドームでターゲットを撃ち抜く、スコアアタック。</p>
-          <div class="actions"><a class="play" href="/starshot/">PLAY</a></div>
+          <div class="actions"><a class="play" href="/starshot/"><span class="button-mark" aria-hidden="true">✦</span>PLAY</a></div>
         </article>
         <article class="game lemon">
           <div class="game-mark" aria-hidden="true">🍋</div>
           <h2>CC レモン</h2>
           <p>レモンをテーマにした対戦ゲーム。ローカル・オンラインの対戦に対応。</p>
           <div class="actions">
-            <a class="play" href="/cc-lemon/">PLAY</a>
-            <a class="play secondary" href="/cc-lemon/local-match/">LOCAL</a>
-            <a class="play secondary" href="/cc-lemon/online-match/">ONLINE</a>
+            <a class="play" href="/cc-lemon/"><span class="button-mark" aria-hidden="true">🍋</span>PLAY</a>
+            <a class="play secondary" href="/cc-lemon/local-match/"><span class="button-mark" aria-hidden="true">⌂</span>LOCAL</a>
+            <a class="play secondary" href="/cc-lemon/online-match/"><span class="button-mark" aria-hidden="true">◉</span>ONLINE</a>
           </div>
         </article>
         <article class="game timer">
           <div class="game-mark" aria-hidden="true">05</div>
           <h2>THERMOREL</h2>
           <p>消えた時計を読み、目標時間ぴったりを狙う5ラウンドのアーケード。</p>
-          <div class="actions"><a class="play" href="/thermorel-timer/">PLAY</a></div>
+          <div class="actions"><a class="play" href="/thermorel-timer/"><span class="button-mark" aria-hidden="true">05</span>PLAY</a></div>
         </article>
         <article class="game mochi">
           <div class="game-mark" aria-hidden="true">☄</div>
           <h2>もちメテオ</h2>
           <p>ふわふわおもちうさぎの、エンドレスよけゲーム。</p>
-          <div class="actions"><a class="play" href="/mochi-meteor/">PLAY</a></div>
+          <div class="actions"><a class="play" href="/mochi-meteor/"><span class="button-mark" aria-hidden="true">☄</span>PLAY</a></div>
         </article>
         <article class="game block">
           <div class="game-mark" aria-hidden="true">▦</div>
           <h2>ブロックワールド</h2>
           <p>クラフト、探索、建築ができるマイクラ風3Dブロックゲーム。</p>
-          <div class="actions"><a class="play" href="/maikura-modoki/">PLAY</a></div>
+          <div class="actions"><a class="play" href="/maikura-modoki/"><span class="button-mark" aria-hidden="true">▦</span>PLAY</a></div>
         </article>
         <article class="game beta">
           <div class="game-mark" aria-hidden="true">β</div>
           <h2>Beta</h2>
-          <div class="actions"><a class="play" href="/beta/">PLAY</a></div>
+          <div class="actions"><a class="play" href="/beta/"><span class="button-mark" aria-hidden="true">β</span>PLAY</a></div>
         </article>
         <article class="game neon">
           <div class="game-mark" aria-hidden="true">♫</div>
           <h2>NEON BEAT LIVE</h2>
           <p>6レーン・30曲を収録した、Godot製のリズムゲーム。</p>
-          <div class="actions"><a class="play" href="https://github.com/rippy0311-afk/neon-beat-live">GITHUBで開く</a></div>
+          <div class="actions"><a class="play" href="https://github.com/rippy0311-afk/neon-beat-live"><span class="button-mark" aria-hidden="true">♫</span>GITHUBで開く</a></div>
         </article>
       </div>
     </section>
