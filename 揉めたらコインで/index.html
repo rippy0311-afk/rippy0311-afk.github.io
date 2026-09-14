@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#071410">
+  <meta name="description" content="揉めたらコインで。神秘的な黄金のコインを投げて、表か裏か、運にゆだねよう。">
+  <title>揉めたらコインで</title>
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg">
+  <link rel="stylesheet" href="./style.css">
+  <script src="./app.js" defer></script>
+</head>
+<body>
+  <div class="frame" aria-hidden="true"><span>◇</span><span>◇</span></div>
+  <main>
+    <header>
+      <h1>揉めたら<span>コインで</span></h1>
+      <div class="rule" aria-hidden="true">◇</div>
+      <p class="tagline">決着は、一枚にゆだねる。</p>
+    </header>
+    <section class="ritual" aria-label="コインの抽選">
+      <div class="stage" aria-hidden="true">
+        <img id="poster" src="./assets/heads-poster.png" alt="" width="720" height="720">
+        <canvas id="animation" width="540" height="540"></canvas>
+        <video id="heads" muted playsinline preload="auto" disablepictureinpicture tabindex="-1" src="./assets/heads.mp4"></video>
+        <video id="tails" muted playsinline preload="auto" disablepictureinpicture tabindex="-1" src="./assets/tails.mp4"></video>
+      </div>
+      <p id="result" class="result" role="status" aria-live="polite" aria-atomic="true"><span>表</span><i></i><span>裏</span></p>
+      <div class="action"><button id="flip" type="button"><span id="button-label">コインを投げる</span></button></div>
+      <p id="notice" class="notice" role="status" aria-live="polite"></p>
+    </section>
+    <footer>
+      <div class="rule" aria-hidden="true">◇</div>
+      <p>表も裏も、確率は1/2。</p>
+      <div class="downloads"><a href="./assets/heads.mp4" download="揉めたらコインで-表.mp4">表の動画</a><span aria-hidden="true">|</span><a href="./assets/tails.mp4" download="揉めたらコインで-裏.mp4">裏の動画</a></div>
+    </footer>
+  </main>
+</body>
+</html>
